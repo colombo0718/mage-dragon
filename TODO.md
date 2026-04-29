@@ -39,7 +39,8 @@
 - [x] **playwright_full_game.py** — 雙 iframe 全螢幕，自動跑完一局
 - [x] **dual-view.html** — iframe 3:1 並排供 Playwright 使用
 - [x] **playwright_stress_test.py** — 10 局連測，統計勝率
-- [ ] **wait_resolve(guest) 逾時** — 壓測偶發，Guest dragon-skill 未更新的根本原因待查
+- [x] **wait_resolve(guest) 逾時** — 改為 `gs.turn > current_turn` 條件，根本原因（race condition）已修
+- [x] **inject_dragon_config no-op** — `applyAiConfig()` 改為 `applyAiConfig(cfg)` 傳入 config 物件
 - [ ] **策略腳本優化** — 龍吸氣第 1/2 回合都選盾；補血協調（Host 詠唱補血時 Guest 也選補血）
 
 ---

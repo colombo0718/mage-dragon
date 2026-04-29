@@ -27,7 +27,7 @@ def get_state(page):
         aSkill: document.getElementById('mageA-skill')?.textContent,
         bSkill: document.getElementById('mageB-skill')?.textContent,
         dSkill: document.getElementById('dragon-skill')?.textContent,
-        phase:  window.gs?.phase,
+        phase:  gs?.phase,
     })""")
 
 def last_system_msg(page):
@@ -36,7 +36,7 @@ def last_system_msg(page):
 
 def is_mageA_forced(page):
     return page.evaluate("""() => {
-        const a = window.gs?.mageA?.action;
+        const a = gs?.mageA?.action;
         return a >= 1 && a <= 3;
     }""")
 
@@ -110,7 +110,7 @@ with sync_playwright() as pw:
     for turn in range(1, 21):
         p(f"─── 回合 {turn} ───")
 
-        if page.evaluate("() => window.gs?.phase") == "game_over":
+        if page.evaluate("() => gs?.phase") == "game_over":
             p("🏁 遊戲已結束")
             break
 

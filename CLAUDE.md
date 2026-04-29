@@ -1,71 +1,105 @@
-# CLAUDE.md — Mage vs Dragon 專案背景
+# CLAUDE.md — 通用工作規範
+
+> 這份文件是跨專案通用的 AI 協作規範。
+> 專案本身的架構、協定、技術細節寫在 `PROJECT.md`。
+
+@PROJECT.md
 
 ---
 
-## 這個專案是什麼
+## 檔案系統規範
 
-**法師鬥惡龍 Mage vs Dragon** — 兩名法師合作對抗惡龍的同步回合制遊戲。
-核心特點：LLM 同時負責遊戲決策 + 角色扮演 + 作為研究對象。
+每個專案應維護以下檔案，各司其職：
 
-隸屬 **LeafLune 宇宙**，與 Shadow Protocol 同屬「玄機界域 SS」品牌，
-但定位是獨立的輕量 LLM 實驗專案。
+| 檔案 | 對象 | 寫什麼 |
+|------|------|--------|
+| `CLAUDE.md` | Claude（AI） | 通用工作規範（本檔）+ @PROJECT.md |
+| `PROJECT.md` | Claude（AI） | 這個專案的架構、協定、已知坑、專案特有開發習慣 |
+| `README.md` | 陌生人 | 專案介紹、安裝、使用方式 |
+| `TODO.md` | 開發者 | 待辦、擱置功能、未來想法 |
+| `CHANGELOG.md` | 開發者/使用者 | 重大改動里程碑、架構決策紀錄 |
 
----
+### PROJECT.md 寫什麼
+- 這個專案是什麼（一段話定位）
+- 線上網址、部署方式
+- 架構概覽（目錄結構、關鍵檔案）
+- 通訊協定或 API 規格（不顯而易見的部分）
+- 已知 bug / quirk / 例外處理
+- 開發規範（commit 語言、避免大改的理由）
+- 專案特有開發習慣（命名規則、工具使用偏好、格式慣例等）
 
-## 三層目標
+### TODO.md 格式規則
+- `[ ]` 待辦，`[x]` 完成
+- 條目後附說明（why + 設計考量）
+- 有依賴關係的加 `> 需等 xxx 完成`
+- 用主題區段分組，不用時間順序
+- 擱置的功能附擱置原因
 
-1. **Game Layer** — 規則極簡的同步回合制遊戲，能跑通就是 MVP
-2. **Roleplay Layer** — LLM 扮演隊友（策略分析）和惡龍（威脅台詞、場面描繪）
-3. **Research Layer** — 觀察 LLM 在承諾機制 + 博弈壓力下是否出現「說一套做一套」的行為
-
----
-
-## 遊戲規則摘要
-
-**法師（4 選 1，詠唱 1 回合後強制施放，不可取消）：**
-- ⭕ 無
-- ⚡ 閃電：單人 1 傷；雙人同時 → 4 傷
-- 🛡️ 護盾：單人傷害減半；雙人 → 反彈全傷
-- 💚 補血：隊友回 2HP；雙人同時 → 各回 3HP
-
-**惡龍（可中途取消蓄力，製造假動作）：**
-- ⭕ 無
-- 🔥 噴火：吸氣 👃×2 → 8 傷
-- 💥 爪擊：抬手 ✋×1 → 4 傷
-
-詠唱承諾機制是核心設計，**不要拿掉**——沒有它法師變成純反應遊戲，協調問題消失。
-
----
-
-## 技術架構
-
-目標：**純前端，無後端**
-- WebLLM（`@mlc-ai/web-llm`）在瀏覽器內跑 Qwen 系列小模型
-- 零 token 費用、離線可用
-- `webllm-demo.html` 已跑通，可載入 Qwen2.5 系列
-
-**目前擱置原因：** 移動端瀏覽器 WebGPU 支援不足，教室平板無法使用。
-等 iOS/Android Chrome 的 WebGPU 支援成熟後繼續推進。
-
-**備選方案（未來）：** Flask 自架 LLM API，但偏離「零基礎設施」初衷。
+### CHANGELOG.md 寫什麼
+- 功能完整上線的里程碑（不是每個 commit）
+- 架構層級的重大決策（換部署平台、協定改版）
+- 破壞性變更（舊介面不相容）
+- 重要會議或決策結果
+- **不寫**：小 bug fix、文字調整（那是 git log 的事）
 
 ---
 
-## 現狀
+## Sub-agent 工具規範
 
-- `index.html` — 三欄 UI（規則/對戰/儀表），純靜態 mockup，遊戲邏輯未實作
-- `webllm-demo.html` — WebLLM 最小可用 demo，已可在桌機 Chrome 跑 Qwen
-- 遊戲邏輯（state machine、結算、LLM prompt 接入）尚未開發
+本專案環境下可調用兩個 AI 小弟：
 
----
-
-## LLM 接入設計（待實作）
-
-State 極小，直接轉文字描述丟給 LLM：
+### Gemini（`gemini -p "..."`)
+```bash
+gemini -p "你的 prompt"                                    # 基本用法
+gemini --include-directories "C:/path/outside" -p "..."   # 讀取 workspace 外的目錄
+gemini --yolo -p "..."                                     # 自動批准所有工具調用
+gemini -p "..." --output-format json                       # 結構化輸出，方便 Claude 解析
+timeout 60 gemini -p "..."                                 # 加 timeout 保護，避免等太久
 ```
-法師A：HP=5，已詠唱⚡（下回合強制施放）
-法師B：HP=3，等待你的指令
-惡龍：HP=14，正在吸氣👃（第1/2回合）
-請選擇法師B本回合詠唱的法術：無/閃電/護盾/補血
+
+**適合交給 Gemini 的任務：**
+- 需要 web search 的研究（查競品、查 API 文件、查最新規範）
+- 批量生成相似內容（多篇文章、多個說明卡片）
+- 讀取 workspace 外的目錄（用 `--include-directories`）
+- 翻譯、改寫、潤稿
+
+**不適合：**
+- 需要深度理解本專案架構的改動（它沒有這段對話的 context）
+- 需要跟使用者來回確認的決策性工作
+
+### Codex（`codex exec "..."`)
+```bash
+codex exec "你的 prompt"    # 非互動模式
+codex review                # code review 模式
 ```
-LLM 回傳 action + 台詞，分別用於決策結算和畫面顯示。
+
+**適合交給 Codex 的任務：**
+- Code review（用 `codex review`）
+- 分析某段程式的邏輯或潛在問題
+- 生成符合現有 codebase 風格的程式碼片段
+
+**注意：**
+- 預設 sandbox 是 read-only，執行 shell 命令會被擋
+- 模型為 gpt-5.4
+
+### 分工原則
+```
+批量生成相似內容             → gemini（並行或順序）
+需要 web search 的研究       → gemini
+讀取 workspace 外目錄        → gemini --include-directories
+Code review / 程式分析       → codex review
+需要跟使用者確認的決策       → 不委派，自己處理
+需要理解本專案 context 的改動 → 自己做
+```
+
+---
+
+## Branch / 部署策略
+
+```
+功能開發    → dev 分支（或 feature/xxx）
+            → Cloudflare Pages 預覽 URL 即時可看
+穩定版本    → merge to master
+            → 正式網址自動更新（push 後約 1 分鐘）
+```
+

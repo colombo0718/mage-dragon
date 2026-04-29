@@ -37,7 +37,7 @@ def get_state(frame):
         aHp:    document.getElementById('mageA-hp')?.textContent,
         bHp:    document.getElementById('mageB-hp')?.textContent,
         dHp:    document.getElementById('dragon-hp')?.textContent,
-        phase:  window.gs?.phase,
+        phase:  gs?.phase,
     })""")
 
 def last_sys(frame):
@@ -137,7 +137,7 @@ with sync_playwright() as pw:
         g_choice, g_reason = choose(msg, s["aHp"], s["bHp"])
 
         # Host 出招
-        a_forced = host.evaluate("() => { const a=window.gs?.mageA?.action; return a>=1&&a<=3; }")
+        a_forced = host.evaluate("() => { const a=gs?.mageA?.action; return a>=1&&a<=3; }")
         if a_forced:
             p(f"  Host ⏩ 強制施放")
         else:
