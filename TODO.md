@@ -82,3 +82,55 @@
 - [ ] **攻略沉澱** — 每局結束後 LLM 輸出心得
 - [ ] **WebLLM 路線重啟** — 等 iOS/Android Chrome WebGPU 成熟
 - [ ] **RR 教室模式對接** — 多人房間、班級配對、戰報回收
+
+---
+
+## 九、擱置現況（2026-05-13 巡檢）
+
+**最後 commit：2026-04-30**（fix P2P 斷線偵測 + race condition）
+**停滯時長**：約 2 週
+**狀態**：技術 MVP 完整、P2P 穩定、Playwright 10 局壓測通過、但內容停滯
+
+### 卡點（誠實版）
+
+```
+🔴 直播搭檔不夠聰明
+   原本大目標：直播 colombo + Claude vs Codex 玩
+   但 Codex 對 4 選 1 回合制都搞不定（規則明明簡單）
+   Multi-agent 對戰要兩邊都「夠聰明 + 服規則」
+   Codex 訓練偏 code review、不適合博弈遊戲
+
+🔴 訊息面板太乾
+   只有純數值結算（「玩家A:閃電1傷」）
+   缺 Persona 把它變成「赤燼策士冷笑：『你以為盾擋得住雷電？』」
+   沒故事化 = 沒直播看點
+
+🟡 論文實驗教學優先（4 月底起）
+   時間排擠、被擱置至今
+```
+
+### 解套需要做的事（接續開發時的優先序）
+
+1. **換更聰明的 guest agent**（Codex 太弱）
+   - 候選：Gemini 2.x（多模態 + 推理）
+   - 或：自家 Claude 雙開（Host 跟 Guest 都 Claude、不同 system prompt）
+   - 或：home 上的 Ollama（gemma3:4b / qwen2.5:7b 試試）
+
+2. **第六章 Prompt 架構**（既有未完成項、變最高優先）
+   - 4 個智能體 Persona（月影靈雀 / 赤燼策士 / 鏡羽白鶴 / 鐵潮靈獺）
+   - System / User prompt 切分
+   - 訊息面板生動化（每回合台詞、不只結算數字）
+
+3. **第七章研究層啟動**
+   - 行為一致性記錄
+   - 回合 log JSON 匯出
+   - 真實累積取代假資料
+
+### 順帶累積的副產物（4 月已實作、值得保留的洞察）
+
+✓ **dual-view.html** — iframe 多面板架構
+- 一個大網頁 + iframe 分割
+- Host 寬版（3/4）、Guest 豎屏窄版（1/4）
+- OBS 抓整頁、版面一致
+- → 這套 pattern 未來 agent-stream 直播間、SP Generator-Tester 展示、內容引擎 sub-agent 可視化都能用
+- → 不是 mage-dragon 專屬、是 LL agent 直播 infrastructure 雛形
