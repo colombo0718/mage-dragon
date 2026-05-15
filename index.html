@@ -1096,12 +1096,15 @@ document.getElementById('avatar-picker').addEventListener('click', e => {
     document.querySelectorAll('.avatar-opt').forEach(el => el.classList.remove('selected'));
     opt.classList.add('selected');
     playerAvatar = opt.dataset.emoji;
-    document.getElementById('mageA').textContent = playerAvatar;
+    // role-aware：guest 視角自己是 mageB、host 視角自己是 mageA
+    const selfId = p2pRole === 'guest' ? 'mageB' : 'mageA';
+    document.getElementById(selfId).textContent = playerAvatar;
 });
 
 playerIdEl.addEventListener('input', () => {
     const name = playerIdEl.value.trim();
-    document.getElementById('mageA-name').textContent = name || '我';
+    const selfId = p2pRole === 'guest' ? 'mageB-name' : 'mageA-name';
+    document.getElementById(selfId).textContent = name || '我';
 });
 
 // 👄 = 詠唱中（已承諾，下回合強制施放）  👉 = 施放中（本回合生效）
@@ -1466,7 +1469,9 @@ function gsInit() {
 function gsSetIdle(text) {
     const bar = document.getElementById('input-bar');
     bar.classList.add('idle');
-    document.getElementById('player-send').textContent = text;
+    const btn = document.getElementById('player-send');
+    btn.textContent = text;
+    btn.style.background = '';  // 重置（後續死亡狀態會再覆蓋成橘色）
 }
 
 function gsSetActive() {
@@ -1475,6 +1480,7 @@ function gsSetActive() {
     const btn = document.getElementById('player-send');
     btn.textContent = '送出';
     btn.disabled = false;
+    btn.style.background = '';
     const smartA = gs && mageAModeEl.value === 'smart';
     document.getElementById('player-input').placeholder = smartA
         ? '法師A 由 AI 操控，可傳訊息給隊友…'
@@ -1543,6 +1549,11 @@ function gsTurnStart() {
     const aForced = !aDead && gs.mageA.action >= 1 && gs.mageA.action <= 3;
     if (aDead) {
         pending.mageA = 0;
+        // host 視角 = 我是 A：自己死了、鎖輸入並顯示死亡標記
+        if (p2pRole !== 'guest') {
+            gsSetIdle('💀 你已經死了，等待隊友收拾殘局');
+            document.getElementById('player-send').style.background = '#ea580c';
+        }
     } else if (aForced) {
         pending.mageA = 0;
         if (mageAModeEl.value === 'smart') {
@@ -1706,19 +1717,36 @@ function gsResolve() {
     if (dr.action === 1) msgs.push(`惡龍正在吸氣……（第 ${dr.chargeTurns} 回合）`);
     if (dr.action === 2) msgs.push(`惡龍緩緩抬起利爪……`);
 
-    // 補血
+    // 補血（死亡的法師不可復活、HP 0 維持 0）
     const aHeal = newA === 6, bHeal = newB === 6;
+    const aAlive = gs.mageA.hp > 0, bAlive = gs.mageB.hp > 0;
     if (aHeal && bHeal) {
-        gs.mageA.hp = Math.min(5, gs.mageA.hp + 3);
-        gs.mageB.hp = Math.min(5, gs.mageB.hp + 3);
-        gs.stats.dblHeal++;
-        msgs.push('💚 雙補血！兩名法師各回 3 HP。');
+        if (aAlive) gs.mageA.hp = Math.min(5, gs.mageA.hp + 3);
+        if (bAlive) gs.mageB.hp = Math.min(5, gs.mageB.hp + 3);
+        if (aAlive && bAlive) {
+            gs.stats.dblHeal++;
+            msgs.push('💚 雙補血！兩名法師各回 3 HP。');
+        } else if (aAlive) {
+            msgs.push('💚 雙補血、但法師B已倒下、法師A獨自回 3 HP。');
+        } else if (bAlive) {
+            msgs.push('💚 雙補血、但法師A已倒下、法師B獨自回 3 HP。');
+        } else {
+            msgs.push('💚 雙補血、但兩人皆倒下、無效。');
+        }
     } else if (aHeal) {
-        gs.mageB.hp = Math.min(5, gs.mageB.hp + 2);
-        msgs.push('💚 法師A補血，法師B回 2 HP。');
+        if (bAlive) {
+            gs.mageB.hp = Math.min(5, gs.mageB.hp + 2);
+            msgs.push('💚 法師A補血，法師B回 2 HP。');
+        } else {
+            msgs.push('💚 法師A補血、但法師B已倒下、無效。');
+        }
     } else if (bHeal) {
-        gs.mageA.hp = Math.min(5, gs.mageA.hp + 2);
-        msgs.push('💚 法師B補血，法師A回 2 HP。');
+        if (aAlive) {
+            gs.mageA.hp = Math.min(5, gs.mageA.hp + 2);
+            msgs.push('💚 法師B補血，法師A回 2 HP。');
+        } else {
+            msgs.push('💚 法師B補血、但法師A已倒下、無效。');
+        }
     }
 
     return msgs;
@@ -1769,6 +1797,12 @@ function gsReveal() {
     if (over) {
         gs.phase = 'game_over';
         over === 'win' ? gs.stats.wins++ : gs.stats.losses++;
+        // 補一行最終狀態到戰報、讓玩家看到死亡 HP 不是程式卡住
+        gsAppendLog('END',
+            { hp: gs.mageA.hp, action: 0 },
+            { hp: gs.mageB.hp, action: 0 },
+            { hp: gs.dragon.hp, action: 0 },
+            over === 'win' ? '🎉勝' : '💀敗');
         appendMessage('system', over === 'win'
             ? '🎉 惡龍已被擊敗！法師們獲勝！'
             : '💀 兩名法師均已倒下……惡龍獲勝。');
@@ -2003,7 +2037,9 @@ function p2pOnData(msg) {
                 if (msg.bDead) {
                     p2pSend({ type: 'action', value: 0 });
                     document.getElementById('mageB-skill').textContent = '✅';
-                    gsSetWaiting();
+                    // guest 視角 = 我是 B：自己死了、鎖輸入並顯示死亡標記
+                    gsSetIdle('💀 你已經死了，等待隊友收拾殘局');
+                    document.getElementById('player-send').style.background = '#ea580c';
                 } else if (msg.bForced) {
                     appendMessage('hint', `回合 ${msg.turn}｜${MAGE_STATES[msg.bAction]} 即將施放，等待結算…`);
                     p2pSend({ type: 'action', value: 0 });

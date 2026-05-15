@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Provider Chat Demo</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --bg: #101418;
+            --panel: #182028;
+            --panel-2: #202b35;
+            --text: #f3f7fb;
+            --muted: #97a8ba;
+            --accent: #5bc0ff;
+            --accent-2: #a4ff8a;
+            --danger: #ff7d7d;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Microsoft JhengHei", sans-serif;
+            background: linear-gradient(180deg, #0d1216 0%, #121920 100%);
+            color: var(--text);
+        }
+
+        .page {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 24px 16px 40px;
+        }
+
+        h1 {
+            margin: 0 0 10px;
+            font-size: 32px;
+        }
+
+        .lead {
+            margin: 0 0 18px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .warning {
+            margin-bottom: 18px;
+            padding: 12px 14px;
+            border-radius: 12px;
+            background: rgba(255, 190, 92, 0.12);
+            border: 1px solid rgba(255, 190, 92, 0.28);
+            color: #ffd792;
+            line-height: 1.6;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 340px minmax(0, 1fr);
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        .card h2 {
+            margin: 0 0 12px;
+            font-size: 20px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        label {
+            display: grid;
+            gap: 6px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        input,
+        select,
+        textarea,
+        button {
+            font: inherit;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: var(--panel-2);
+            color: var(--text);
+        }
+
+        textarea {
+            min-height: 96px;
+            resize: vertical;
+        }
+
+        .row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .row > * {
+            flex: 1 1 0;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 14px;
+            cursor: pointer;
+            background: var(--accent);
+            color: #04121d;
+            font-weight: 700;
+        }
+
+        button.secondary {
+            background: #2d3945;
+            color: var(--text);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
+        .provider-help {
+            margin: 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: var(--muted);
+        }
+
+        .provider-help a {
+            color: var(--accent-2);
+        }
+
+        .status {
+            min-height: 22px;
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .status.error {
+            color: var(--danger);
+        }
+
+        .chat-log {
+            height: 560px;
+            overflow: auto;
+            display: grid;
+            gap: 10px;
+            padding-right: 6px;
+        }
+
+        .msg {
+            padding: 12px 14px;
+            border-radius: 14px;
+            line-height: 1.65;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .msg.user {
+            background: rgba(91, 192, 255, 0.14);
+            border: 1px solid rgba(91, 192, 255, 0.22);
+        }
+
+        .msg.assistant {
+            background: rgba(164, 255, 138, 0.1);
+            border: 1px solid rgba(164, 255, 138, 0.16);
+        }
+
+        .msg.system {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+        }
+
+        .msg-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+
+        .composer {
+            margin-top: 14px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .hint {
+            margin-top: 10px;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 860px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .chat-log {
+                height: 420px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <h1>LLM Provider Chat Demo</h1>
+        <p class="lead">
+            選擇 provider，貼上你申請到的 API key，就能直接聊天。
+            這是最小驗證版，適合拿來先測「自備 key 即用」的接入流程。
+        </p>
+
+        <div class="warning">
+            這是純前端範例。API key 會直接從瀏覽器呼叫你選擇的服務，並暫存在本機 `localStorage`。
+            不適合放正式生產環境，但很適合先做接入驗證。
+        </div>
+
+        <div class="layout">
+            <aside class="card">
+                <h2>連線設定</h2>
+                <div class="stack">
+                    <label>
+                        Provider
+                        <select id="provider"></select>
+                    </label>
+
+                    <label>
+                        Model
+                        <input id="model" type="text" />
+                    </label>
+
+                    <label>
+                        API Key
+                        <input id="apiKey" type="password" placeholder="貼上你的 API key" />
+                    </label>
+
+                    <label>
+                        System Prompt
+                        <textarea id="systemPrompt" placeholder="你是一個簡潔、友善的中文助理。"></textarea>
+                    </label>
+
+                    <div class="row">
+                        <button id="saveConfig" type="button">儲存設定</button>
+                        <button id="testConnection" type="button" class="secondary">測試連線</button>
+                    </div>
+
+                    <p id="providerHelp" class="provider-help"></p>
+                    <div id="status" class="status"></div>
+                </div>
+            </aside>
+
+            <main class="card">
+                <h2>對話</h2>
+                <div id="chatLog" class="chat-log"></div>
+
+                <div class="composer">
+                    <textarea id="userInput" placeholder="輸入訊息，例如：請用一句話介紹你自己。"></textarea>
+                    <div class="row">
+                        <button id="sendBtn" type="button">送出</button>
+                        <button id="clearChat" type="button" class="secondary">清空對話</button>
+                    </div>
+                </div>
+
+                <p class="hint">
+                    建議先按一次「測試連線」。如果 provider 可用，再開始正式對話。
+                </p>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = "llm-provider-chat-config-v1";
+        const CHAT_STORAGE_KEY = "llm-provider-chat-history-v1";
+
+        const providerConfigs = {
+            gemini: {
+                label: "Google Gemini",
+                defaultModel: "gemini-2.5-flash",
+                helpHtml: '申請 key：<a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer">Google AI Studio</a>',
+                async call({ apiKey, model, systemPrompt, messages }) {
+                    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+                    const body = {
+                        systemInstruction: systemPrompt
+                            ? {
+                                  parts: [{ text: systemPrompt }]
+                              }
+                            : undefined,
+                        contents: messages.map((msg) => ({
+                            role: msg.role === "assistant" ? "model" : "user",
+                            parts: [{ text: msg.content }]
+                        }))
+                    };
+
+                    const res = await fetch(endpoint, {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "x-goog-api-key": apiKey
+                        },
+                        body: JSON.stringify(body)
+                    });
+
+                    const data = await res.json();
+                    if (!res.ok) {
+                        throw new Error(data.error?.message || "Gemini 請求失敗");
+                    }
+
+                    const text =
+                        data.candidates?.[0]?.content?.parts
+                            ?.map((part) => part.text || "")
+                            .join("")
+                            .trim() || "";
+
+                    if (!text) {
+                        throw new Error("Gemini 沒有回傳文字內容");
+                    }
+
+                    return text;
+                }
+            },
+            groq: {
+                label: "Groq",
+                defaultModel: "llama-3.3-70b-versatile",
+                helpHtml: '申請 key：<a href="https://console.groq.com/keys" target="_blank" rel="noreferrer">Groq Console</a>',
+                async call({ apiKey, model, systemPrompt, messages }) {
+                    return callOpenAICompatible({
+                        endpoint: "https://api.groq.com/openai/v1/chat/completions",
+                        apiKey,
+                        model,
+                        systemPrompt,
+                        messages
+                    });
+                }
+            },
+            openrouter: {
+                label: "OpenRouter",
+                defaultModel: "openrouter/auto",
+                helpHtml: '申請 key：<a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">OpenRouter Keys</a>',
+                async call({ apiKey, model, systemPrompt, messages }) {
+                    return callOpenAICompatible({
+                        endpoint: "https://openrouter.ai/api/v1/chat/completions",
+                        apiKey,
+                        model,
+                        systemPrompt,
+                        messages,
+                        extraHeaders: {
+                            "HTTP-Referer": window.location.href,
+                            "X-OpenRouter-Title": "LLM Provider Chat Demo"
+                        }
+                    });
+                }
+            }
+        };
+
+        async function callOpenAICompatible({
+            endpoint,
+            apiKey,
+            model,
+            systemPrompt,
+            messages,
+            extraHeaders = {}
+        }) {
+            const payloadMessages = [];
+            if (systemPrompt.trim()) {
+                payloadMessages.push({ role: "system", content: systemPrompt.trim() });
+            }
+            payloadMessages.push(...messages);
+
+            const res = await fetch(endpoint, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${apiKey}`,
+                    ...extraHeaders
+                },
+                body: JSON.stringify({
+                    model,
+                    messages: payloadMessages
+                })
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error?.message || "API 請求失敗");
+            }
+
+            const text = data.choices?.[0]?.message?.content?.trim() || "";
+            if (!text) {
+                throw new Error("模型沒有回傳文字內容");
+            }
+            return text;
+        }
+
+        const providerEl = document.getElementById("provider");
+        const modelEl = document.getElementById("model");
+        const apiKeyEl = document.getElementById("apiKey");
+        const systemPromptEl = document.getElementById("systemPrompt");
+        const providerHelpEl = document.getElementById("providerHelp");
+        const statusEl = document.getElementById("status");
+        const saveConfigBtn = document.getElementById("saveConfig");
+        const testConnectionBtn = document.getElementById("testConnection");
+        const chatLogEl = document.getElementById("chatLog");
+        const userInputEl = document.getElementById("userInput");
+        const sendBtn = document.getElementById("sendBtn");
+        const clearChatBtn = document.getElementById("clearChat");
+
+        let chatHistory = [];
+
+        function setStatus(text, isError = false) {
+            statusEl.textContent = text;
+            statusEl.classList.toggle("error", isError);
+        }
+
+        function getConfig() {
+            return {
+                provider: providerEl.value,
+                model: modelEl.value.trim(),
+                apiKey: apiKeyEl.value.trim(),
+                systemPrompt: systemPromptEl.value.trim()
+            };
+        }
+
+        function saveConfig() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(getConfig()));
+            setStatus("設定已儲存到本機瀏覽器");
+        }
+
+        function renderProviderOptions() {
+            providerEl.innerHTML = Object.entries(providerConfigs)
+                .map(([key, config]) => `<option value="${key}">${config.label}</option>`)
+                .join("");
+        }
+
+        function updateProviderUI() {
+            const config = providerConfigs[providerEl.value];
+            providerHelpEl.innerHTML = config.helpHtml;
+            if (!modelEl.value.trim()) {
+                modelEl.value = config.defaultModel;
+            }
+        }
+
+        function renderChat() {
+            chatLogEl.innerHTML = "";
+            if (chatHistory.length === 0) {
+                appendLog("system", "系統", "目前還沒有對話。先設定 provider 與 key，再送出第一句訊息。");
+                return;
+            }
+
+            chatHistory.forEach((item) => appendLog(item.role, item.label, item.content));
+            chatLogEl.scrollTop = chatLogEl.scrollHeight;
+        }
+
+        function appendLog(role, label, content) {
+            const div = document.createElement("div");
+            div.className = `msg ${role}`;
+            div.innerHTML = `<span class="msg-label">${label}</span>${escapeHtml(content)}`;
+            chatLogEl.appendChild(div);
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;")
+                .replaceAll("'", "&#39;")
+                .replaceAll("\n", "<br>");
+        }
+
+        function persistChat() {
+            localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(chatHistory));
+        }
+
+        function loadSavedState() {
+            renderProviderOptions();
+
+            const savedConfig = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+            providerEl.value = savedConfig.provider && providerConfigs[savedConfig.provider] ? savedConfig.provider : "gemini";
+            modelEl.value = savedConfig.model || providerConfigs[providerEl.value].defaultModel;
+            apiKeyEl.value = savedConfig.apiKey || "";
+            systemPromptEl.value = savedConfig.systemPrompt || "你是一個簡潔、友善的中文助理。";
+            updateProviderUI();
+
+            chatHistory = JSON.parse(localStorage.getItem(CHAT_STORAGE_KEY) || "[]");
+            renderChat();
+        }
+
+        async function runChat(messageText) {
+            const { provider, model, apiKey, systemPrompt } = getConfig();
+            if (!apiKey) {
+                setStatus("請先貼上 API key", true);
+                return;
+            }
+
+            const providerConfig = providerConfigs[provider];
+            const messages = chatHistory
+                .filter((item) => item.role === "user" || item.role === "assistant")
+                .map((item) => ({
+                    role: item.role,
+                    content: item.content
+                }));
+
+            const userMessage = {
+                role: "user",
+                label: "你",
+                content: messageText
+            };
+            chatHistory.push(userMessage);
+            persistChat();
+            renderChat();
+
+            sendBtn.disabled = true;
+            testConnectionBtn.disabled = true;
+            setStatus(`正在向 ${providerConfig.label} 發送請求...`);
+
+            try {
+                const assistantText = await providerConfig.call({
+                    apiKey,
+                    model,
+                    systemPrompt,
+                    messages: [...messages, { role: "user", content: messageText }]
+                });
+
+                chatHistory.push({
+                    role: "assistant",
+                    label: providerConfig.label,
+                    content: assistantText
+                });
+                persistChat();
+                renderChat();
+                setStatus(`收到 ${providerConfig.label} 回覆`);
+            } catch (error) {
+                chatHistory.push({
+                    role: "system",
+                    label: "系統",
+                    content: `呼叫失敗：${error.message}`
+                });
+                persistChat();
+                renderChat();
+                setStatus(error.message, true);
+            } finally {
+                sendBtn.disabled = false;
+                testConnectionBtn.disabled = false;
+            }
+        }
+
+        async function testConnection() {
+            const { apiKey } = getConfig();
+            if (!apiKey) {
+                setStatus("請先貼上 API key", true);
+                return;
+            }
+
+            sendBtn.disabled = true;
+            testConnectionBtn.disabled = true;
+            setStatus("測試中...");
+
+            try {
+                const { provider, model, systemPrompt } = getConfig();
+                const providerConfig = providerConfigs[provider];
+                const reply = await providerConfig.call({
+                    apiKey,
+                    model,
+                    systemPrompt,
+                    messages: [{ role: "user", content: "請只回答：連線成功" }]
+                });
+                setStatus(`測試成功：${reply}`);
+            } catch (error) {
+                setStatus(`測試失敗：${error.message}`, true);
+            } finally {
+                sendBtn.disabled = false;
+                testConnectionBtn.disabled = false;
+            }
+        }
+
+        providerEl.addEventListener("change", () => {
+            modelEl.value = providerConfigs[providerEl.value].defaultModel;
+            updateProviderUI();
+        });
+
+        saveConfigBtn.addEventListener("click", saveConfig);
+        testConnectionBtn.addEventListener("click", testConnection);
+
+        sendBtn.addEventListener("click", async () => {
+            const text = userInputEl.value.trim();
+            if (!text) {
+                setStatus("請先輸入訊息", true);
+                return;
+            }
+            userInputEl.value = "";
+            await runChat(text);
+        });
+
+        clearChatBtn.addEventListener("click", () => {
+            chatHistory = [];
+            persistChat();
+            renderChat();
+            setStatus("對話已清空");
+        });
+
+        userInputEl.addEventListener("keydown", async (event) => {
+            if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                sendBtn.click();
+            }
+        });
+
+        loadSavedState();
+    </script>
+</body>
+</html>

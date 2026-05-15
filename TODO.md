@@ -2,6 +2,21 @@
 
 ---
 
+## ⬡ MM 同步
+
+| title | status | importance | energy | effort | due | next_action | tags |
+|-------|--------|------------|--------|--------|-----|-------------|------|
+| MD CLI 包裝 Phase 0 Daemon | done | 1 | h | 480 | 2026-05-14 | ✓ daemon.py、/health /state /action /chat 全通、Turn 3 雙閃電命中驗證 | MD,cli,daemon |
+| MD CLI 包裝 Phase 1 薄殼 | done | 1 | m | 240 | 2026-05-14 | ✓ mdgame.py 薄殼、含 say 聊天指令、ASCII 戰場渲染 | MD,cli |
+| MD CLI 包裝 Phase 2 多 Player | queued | 1 | h | 360 | 2026-05-18 | daemon 多 slot、隊伍劃分、聊天頻道 | MD,cli,multiplayer |
+| MD CLI 包裝 Phase 3 match.py | queued | 1 | h | 240 | 2026-05-19 | 編排層、自動 spawn agent、產出對戰報告 | MD,cli,orchestration |
+| MD CLI 包裝 Phase 4 首場對戰 | queued | 1 | h | 480 | 2026-05-21 | Opus 4.7 vs Sonnet 4.6 跑 10 場、錄 demo | MD,agent,demo |
+| 第六章 Prompt 架構 | queued | 2 | h | 360 | | 4 個 Persona + System/User 切分、配合 CLI 上線 | MD,prompt |
+| 第七章研究層 | queued | 2 | m | 240 | | 行為一致性 log + JSON 匯出 + 真實統計 | MD,research |
+| 既有 P2P 對戰 | done | 2 | m | 0 | | — | MD,p2p |
+
+---
+
 ## 一、遊戲核心（MVP）
 
 - [x] **State machine** — `gs.phase`: idle → choosing → revealing → resolving → game_over
@@ -82,6 +97,78 @@
 - [ ] **攻略沉澱** — 每局結束後 LLM 輸出心得
 - [ ] **WebLLM 路線重啟** — 等 iOS/Android Chrome WebGPU 成熟
 - [ ] **RR 教室模式對接** — 多人房間、班級配對、戰報回收
+
+---
+
+## 十、CLI 包裝動工計畫（2026-05-14 立案）
+
+> 詳細規格見 [`docs/cli-wrapping-plan.md`](docs/cli-wrapping-plan.md)。
+> 這是 §九「擱置現況」的解套路徑、把 MD 從卡死 PoC 變成 agent 競技場。
+
+### 架構
+
+```
+[index.html]
+   ↑↓ Playwright
+[Flask Daemon：遊戲狀態 + player slot]   ← 重、唯一
+   ↑↓ HTTP
+[mdgame CLI A]  [mdgame CLI B]   ← 薄殼、多開
+   ↑              ↑
+[Agent A]       [Agent B]
+```
+
+→ agent 只看遊戲、不管連線
+→ daemon 唯一、CLI 多開、編排層在外面
+
+### Phase 0：Daemon 雛形 ✅ DONE 2026-05-14
+
+- [x] Flask app 起在 `localhost:8080`（`daemon.py`）
+- [x] Playwright 開 `dual-view.html`、P2P 自動完成、host+guest 兩 frame 各代表 A/B player
+- [x] API：`GET /health` `GET /state?player=X` `POST /action` `POST /reset` `GET /chat` `POST /chat`
+- [x] curl 驗收：雙閃電 → 龍 HP 20→16、Turn 1→3、chat ASCII 通
+
+### Phase 1：CLI 薄殼 ✅ DONE 2026-05-14
+
+- [x] `mdgame.py --player=A/B --host=... --poll=...`
+- [x] /health 確認 daemon ready 才進迴圈
+- [x] ASCII 戰場（HP 條、回合、phase、最近系統訊息）
+- [x] stdin：`1/2/3`（出招）/ `say <文字>`（聊天）/ `quit`
+- [x] 聊天輪詢：撈隊友訊息插進 stdout
+- [ ] 驗收：人類用兩 terminal 完整打完一局（下一步、user 自己測）
+
+### Phase 2：多 Player Slot（Day 4）
+
+- [ ] Daemon 內部 slot 表（A/B/C/D）
+- [ ] MUST 同步回合：全員提交才結算
+- [ ] Timeout 30 秒 → pass
+- [ ] 隊伍劃分（2v2 / 3:1）
+- [ ] Chat：team / all 區分
+- [ ] 驗收：四 terminal 跑 2v2 完整
+
+### Phase 3：編排層 match.py（Day 5）
+
+- [ ] `match.py --a "..." --b "..."` 一鍵啟動
+- [ ] 自動 spawn daemon + N CLI + 各接 agent
+- [ ] 對戰 log 存 `matches/YYYY-MM-DD_*.log`
+- [ ] 比賽報告（勝負 + 回合數 + 關鍵操作）
+
+### Phase 4：首場 Agent 對戰（Day 6-7）
+
+- [ ] Agent A：Claude Opus 4.7
+- [ ] Agent B：Claude Sonnet 4.6 / Codex / Gemini
+- [ ] 給 agent 的 system prompt 範本
+- [ ] 跑 10 場、看勝率
+- [ ] 錄 demo 影片素材（LL 對外用）
+
+### 完成後 LL 整體收益
+
+```
+1. MD 從卡住的 PoC → 跑得動的競技場
+2. CLI + Daemon 模板可複製到 SP / DD / 任何 MUST 遊戲
+3. match.py 是 SS 競技場雛形
+4. 對外有「AI vs AI 實戰」demo 素材（NN / YT / 直播可用）
+5. 驗證「網頁 → CLI 化」LL 標準
+```
 
 ---
 

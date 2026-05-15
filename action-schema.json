@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "reason"],
+  "properties": {
+    "action": {
+      "type": "string",
+      "enum": ["1", "2", "3"],
+      "description": "1=lightning, 2=shield, 3=heal"
+    },
+    "reason": {
+      "type": "string",
+      "description": "one short sentence"
+    }
+  }
+}

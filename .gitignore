@@ -1,2 +1,5 @@
 .env
 screenshots/
+__pycache__/
+video-tests/
+task-out.txt
